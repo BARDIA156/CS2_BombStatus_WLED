@@ -6,7 +6,7 @@ echo ===============================
 pip install -r requirements.txt
 pip install pyinstaller
 
-pyinstaller --onefile --icon=icon.ico --add-data "ip.json;." cs2_wled.py
+python -m PyInstaller --onefile --icon=icon.ico --add-data "ip.json;." cs2_wled.py
 
 echo.
 echo Build finished!
