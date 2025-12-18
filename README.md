@@ -51,6 +51,8 @@ Double-click:
 ```
 Python_to_EXE.bat
 ```
+After That You Need to put out the app from "dist" Folder. if you don't , the app dosen't gonna work
+
 ## 🛡️ Firewall Settings For EXE !!Importent . If YOU Don't Do It The App Dosen't Work!!
 ```
 Press the Windows Key and type "Windows Defender Firewall", then open Windows Defender Firewall with Advanced Security.
@@ -70,6 +72,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
