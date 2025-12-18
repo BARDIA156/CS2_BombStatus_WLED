@@ -23,6 +23,7 @@ Create `gamestate_integration_wled.cfg`:
 ```
 "uri" "http://127.0.0.1:3000"
 ```
+on `YourDrive:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg`
 
 ## 🛠 Build EXE
 Double-click:
@@ -34,3 +35,4 @@ Python_to_EXE.bat
 - Python 3.10+
 - WLED device
 - CS2
+
