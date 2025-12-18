@@ -51,6 +51,18 @@ Double-click:
 ```
 Python_to_EXE.bat
 ```
+## 🛡️ Firewall Settings For EXE !!Importent . If YOU Don't Do It The App Dosen't Work!!
+```
+Press the Windows Key and type "Windows Defender Firewall", then open Windows Defender Firewall with Advanced Security.
+In the left pane, click on Outbound Rules.
+In the right pane, click on New Rule....
+Select Port and click Next.
+Select TCP.
+Select Specific remote ports and enter 3000. Click Next.
+Select Allow the connection and click Next.
+Keep all profiles (Domain, Private, Public) checked and click Next.
+Give the rule a name (e.g., "WLED_CS2") and click Finish.
+```
 
 ## 📡 Requirements
 - Python 3.10+
@@ -58,6 +70,7 @@ Python_to_EXE.bat
 - CS2
 - flask
 - requests
+
 
 
 
