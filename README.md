@@ -21,7 +21,28 @@ python cs2_wled.py --test
 ## 🎮 CS2 Config
 Create `gamestate_integration_wled.cfg`:
 ```
-"uri" "http://127.0.0.1:3000"
+{
+  "uri" "http://127.0.0.1:3000"
+  "timeout" "5.0"
+  "buffer"  "0.1"
+  "throttle" "0.1"
+  "heartbeat" "30.0"
+
+  "data"
+  {
+    "provider"            "1"
+    "map"                 "1"
+    "round"               "1"
+    "player_id"           "1"
+    "player_state"        "1"
+    "player_match_stats"  "1"
+    "bomb"                "1"
+    "allplayers_id"       "1"
+    "allplayers_state"    "1"
+    "allplayers_match_stats" "1"
+  }
+}
+
 ```
 on `YourDrive:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg`
 
@@ -37,5 +58,6 @@ Python_to_EXE.bat
 - CS2
 - flask
 - requests
+
 
 
