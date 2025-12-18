@@ -35,4 +35,7 @@ Python_to_EXE.bat
 - Python 3.10+
 - WLED device
 - CS2
+- flask
+- requests
+
 
