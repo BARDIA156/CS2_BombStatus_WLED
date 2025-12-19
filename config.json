@@ -1,11 +1,12 @@
 {
-  "wled_ip": "192.168.1.100", # add your real ip
+  "wled_ip": "192.168.1.100", \\ add your real ip
 
   "bomb_status": 1,
   "player_status": 0,
   "player_health": 0
 
-  # "1" is "On" and "0" is "Off"
-  # Only One Option Can be Choose. if you use more than One Option, the App error about This
+  \\ "1" is "On" and "0" is "Off"
+  \\ Only One Option Can be Choose. if you use more than One Option, the App error about This
 }
+
 
