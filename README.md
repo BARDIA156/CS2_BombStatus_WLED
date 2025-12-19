@@ -18,6 +18,9 @@ Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade 
 
 ### [Introduce Video Youtube](https://youtu.be/uXQSdV3tm0Q)
 
+> [!IMPORTANT]
+> This App is Still Under Development and Very Very New. If You Found A Bug, Feel Free To Tell Me.
+
 ## 🧪 Test Mode
 ```bash
 python cs2_wled.py --test
@@ -86,6 +89,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
