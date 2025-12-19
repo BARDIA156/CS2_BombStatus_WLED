@@ -1,4 +1,6 @@
 # CS2 WLED Sync
+<!-- Place this tag where you want the button to render. -->
+<GitHubButton href="https://github.com/BARDIA156" data-color-scheme="no-preference: light_high_contrast; light: light_high_contrast; dark: dark;" data-size="large" aria-label="Follow @BARDIA156 on GitHub">Follow @BARDIA156</GitHubButton>
 
 Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade effects**.
 
@@ -89,6 +91,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
