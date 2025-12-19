@@ -54,6 +54,7 @@ For Setting The Mode :
 ⚠️ Only One Option Can Be Choose , If You Use More Than One Option , The App Simply NOT Gonna Work ⚠️
 
 For "wled_ip" Put Your Real Ip. Mine is just Example
+```
 
 ## 🛠 Build EXE
 Double-click:
@@ -83,6 +84,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - requests
 
 [Youtube Video Test](google.com)
+
 
 
 
