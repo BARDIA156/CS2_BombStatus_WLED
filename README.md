@@ -1,6 +1,6 @@
 # CS2 WLED Sync
 
-Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade effects**. [Introduce Video](CS2_WLED_Video.mp4)
+Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade effects**.
 
 ## ✨ Features
 - Real WLED Fade (no simulation)
@@ -13,6 +13,10 @@ Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade 
 - configurable via config.json
 - EXE build support
 - 3 Options : Player Health with real Bar Simulation , Player Status with Flashbang Simulation and Damage , Bomb Status with Better Explotion Effect.
+
+  [![Watch the video](https://img.youtube.com/vi/uXQSdV3tm0Q/maxresdefault.jpg)](https://youtu.be/uXQSdV3tm0Q)
+
+### [Introduce Video Youtube](https://youtu.be/uXQSdV3tm0Q)
 
 ## 🧪 Test Mode
 ```bash
@@ -82,6 +86,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
