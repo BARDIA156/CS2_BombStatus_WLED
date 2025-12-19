@@ -4,14 +4,15 @@ Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade 
 
 ## ✨ Features
 - Real WLED Fade (no simulation)
-- Accurate 40s bomb timer
+- Accurate bomb timer
 - Green → Yellow → Red phases
-- Bomb exploded → Android effect (orange)
+- Bomb exploded → Colortwinkles Effect
 - Bomb defused → Solid gray
 - Round end → Solid black
 - Test mode (no CS2 needed)
-- IP configurable via ip.json
+- configurable via config.json
 - EXE build support
+- 3 Options : Player Health with real Bar Simulation , Player Status with Flashbang Simulation and Damage , Bomb Status with Better Explotion Effect.
 
 ## 🧪 Test Mode
 ```bash
@@ -46,6 +47,14 @@ Create `gamestate_integration_wled.cfg`:
 ```
 on `YourDrive:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg`
 
+## 📝 Configuration `config.json`:
+```
+For Setting The Mode :
+0 = Off , 1 = On
+⚠️ Only One Option Can Be Choose , If You Use More Than One Option , The App Simply NOT Gonna Work ⚠️
+
+For "wled_ip" Put Your Real Ip. Mine is just Example
+
 ## 🛠 Build EXE
 Double-click:
 ```
@@ -53,7 +62,7 @@ Python_to_EXE.bat
 ```
 After That You Need to put out the app from "dist" Folder. if you don't , the app dosen't gonna work
 
-## 🛡️ Firewall Settings For EXE !!Importent . If YOU Don't Do It The App Dosen't Work!!
+## 🛡️ Firewall Settings For EXE ⚠️ Importent . If YOU Don't Do It The App Dosen't Work ⚠️
 ```
 Press the Windows Key and type "Windows Defender Firewall", then open Windows Defender Firewall with Advanced Security.
 In the left pane, click on Outbound Rules.
@@ -72,6 +81,9 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
+[Youtube Video Test](google.com)
+
 
 
 
