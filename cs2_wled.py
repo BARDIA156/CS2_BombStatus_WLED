@@ -9,7 +9,7 @@ import sys
 # Arguments
 # =======================
 TEST_MODE = "--test" in sys.argv
-TOTAL_LEDS = 105   # 🔴 تعداد LED های واقعی نوار تو
+TOTAL_LEDS = 105   # 🔴 Put your real LED Length
 
 # =======================
 # Load config
@@ -275,3 +275,4 @@ if __name__ == "__main__":
         run_test()
 
     app.run(host="0.0.0.0", port=3000, debug=False)
+
