@@ -1,0 +1,7 @@
+{
+  "wled_ip": "192.168.1.100",
+
+  "bomb_status": 1,
+  "player_status": 0,
+  "player_health": 0
+}

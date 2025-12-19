@@ -1,146 +1,277 @@
 from flask import Flask, request
-import requests, threading, time, sys, json, os, logging
+import requests
+import threading
+import time
+import json
+import sys
 
-# ===================== LOGGING =====================
-logging.getLogger('werkzeug').setLevel(logging.ERROR)
+# =======================
+# Arguments
+# =======================
+TEST_MODE = "--test" in sys.argv
+TOTAL_LEDS = 105   # 🔴 تعداد LED های واقعی نوار تو
 
-def log(tag, msg):
-    print(f"[{tag}] {msg}")
+# =======================
+# Load config
+# =======================
+try:
+    with open("config.json", "r", encoding="utf-8") as f:
+        config = json.load(f)
+except:
+    print("[ERROR] Cannot load config.json")
+    sys.exit(1)
 
-# ===================== LOAD IP =====================
-def load_ip():
-    if not os.path.exists("ip.json"):
-        log("ERROR", "ip.json not found")
-        sys.exit(1)
-    try:
-        with open("ip.json", "r") as f:
-            return json.load(f)["wled_ip"]
-    except:
-        log("ERROR", "Invalid ip.json")
-        sys.exit(1)
+WLED_IP = config.get("wled_ip")
 
-WLED_IP = load_ip()
-CS2_PORT = 3000
-BOMB_TIME = 40
+ENABLE_BOMB = config.get("bomb_status", 0)
+ENABLE_PLAYER = config.get("player_status", 0)
+ENABLE_HEALTH = config.get("player_health", 0)
 
-# ===================== COLORS / SPEED =====================
-COLORS = {
-    "green": [0,255,0],
-    "yellow": [255,180,0],
-    "red": [255,0,0],
-    "orange": [255,80,0],
-    "gray": [80,80,80],
-    "black": [0,0,0]
-}
+# =======================
+# Validate mode (ONLY ONE)
+# =======================
+modes = [ENABLE_BOMB, ENABLE_PLAYER, ENABLE_HEALTH]
 
-SPEED = {"green":80, "yellow":165, "red":255}
+if modes.count(1) != 1:
+    print("[ERROR] Exactly ONE mode must be enabled in config.json")
+    print("bomb_status OR player_status OR player_health")
+    sys.exit(1)
 
-# ===================== GLOBAL =====================
+if ENABLE_BOMB:
+    MODE = "bomb"
+elif ENABLE_PLAYER:
+    MODE = "player_status"
+else:
+    MODE = "player_health"
+
+# =======================
+# Flask
+# =======================
 app = Flask(__name__)
-effects = {}
+def log(msg): print(f"[STATUS] {msg}")
+
+# =======================
+# State
+# =======================
+last_health = 100
 bomb_active = False
-bomb_start = 0
+current_state = "idle"
 
-# ===================== WLED =====================
-def wled(data):
+# =======================
+# WLED helpers
+# =======================
+def send_wled(data):
     try:
-        requests.post(f"http://{WLED_IP}/json/state", json=data, timeout=0.4)
+        requests.post(
+            f"http://{WLED_IP}/json/state",
+            json=data,
+            timeout=0.3
+        )
     except:
-        log("WARN", "WLED not reachable")
+        pass
 
-def detect_effects():
-    try:
-        r = requests.get(f"http://{WLED_IP}/json/effects").json()
-        for i, e in enumerate(r): effects[e.lower()] = i
-        log("INFO", "WLED effects detected")
-    except:
-        log("ERROR", "Cannot get WLED effects")
-        sys.exit(1)
+def solid(r, g, b, transition=7):
+    send_wled({
+        "on": True,
+        "transition": transition,
+        "seg": [{
+            "fx": 0,
+            "col": [[r, g, b]]
+        }]
+    })
 
-def solid(color):
-    wled({"on":True,"ps":-1,"pl":-1,"seg":[{"fx":effects.get("solid",0),"col":[color]}]})
+def fade(r, g, b, speed):
+    send_wled({
+        "on": True,
+        "seg": [{
+            "fx": 2,      # Native WLED fade
+            "sx": speed,
+            "ix": speed,
+            "col": [[r, g, b]]
+        }]
+    })
 
+def android(r, g, b):
+    send_wled({
+        "on": True,
+        "seg": [{
+            "fx": 74,
+            "col": [[r, g, b]]
+        }]
+    })
 
-def effect(name, color, speed):
-    wled({"on":True,"ps":-1,"pl":-1,"seg":[{"fx":effects.get(name,0),"sx":speed,"ix":128,"col":[color]}]})
+def off():
+    send_wled({
+        "on": False,
+        "transition": 10
+    })
 
-# ===================== STATES =====================
-def reset_black():
-    solid(COLORS["black"])
-
-# ===================== BOMB =====================
+# =======================
+# Bomb timing
+# =======================
 def bomb_sequence():
     global bomb_active
-    log("GAME", "Bomb planted")
 
-    phases = [("green",0,10),("yellow",10,20),("red",20,40)]
-    for name,start,end in phases:
-        if not bomb_active: return
-        effect("fade", COLORS[name], SPEED[name])
-        while time.time() - bomb_start < end:
-            if not bomb_active: return
-            time.sleep(0.05)
+    log("Bomb planted")
+    fade(0, 255, 0, 80)        # Green – slow
+    time.sleep(10)
+
+    if not bomb_active:
+        return
+
+    fade(255, 180, 0, 165)    # Yellow – medium
+    time.sleep(10)
+
+    if not bomb_active:
+        return
+
+    fade(255, 0, 0, 255)      # Red – fast
+    time.sleep(20)
+
+# =======================
+# Health Bar
+# =======================
+def health_bar(health):
+    if health <= 0:
+        off()
+        return
+
+    active_leds = int((health / 100) * TOTAL_LEDS)
+    active_leds = max(1, active_leds)
+
+    # Color selection
+    if health > 20:
+        color = [0, 255, 0]      # Green
+    else:
+        color = [255, 0, 0]      # Red
+
+    send_wled({
+        "on": True,
+        "seg": [{
+            "id": 0,
+            "start": 0,
+            "stop": active_leds,
+            "fx": 0,
+            "col": [color]
+        }]
+    })
 
 
-def bomb_exploded():
-    log("GAME", "Bomb exploded")
-    effect("android", COLORS["orange"], 180)
+# =======================
+# Test mode
+# =======================
+def run_test():
+    log("Running test mode")
 
+    if MODE == "bomb":
+        bomb_sequence()
+        time.sleep(1)
+        log("Bomb exploded (test)")
+        android(255, 120, 0)
 
-def bomb_defused():
-    log("GAME", "Bomb defused")
-    solid(COLORS["gray"])
+    elif MODE == "player_status":
+        log("Flashbang test")
+        solid(190, 190, 190, 0)
+        time.sleep(2)
+        solid(0, 0, 0, 15)
 
-# ===================== CS2 =====================
-@app.route('/', methods=['POST'])
-def cs2():
-    global bomb_active, bomb_start
+        log("Damage test")
+        solid(255, 0, 0, 0)
+        time.sleep(0.2)
+        solid(0, 0, 0, 15)
+
+    elif MODE == "player_health":
+        log("Health test")
+        solid(0, 255, 0)
+        time.sleep(2)
+        solid(255, 0, 0)
+        time.sleep(2)
+        off()
+
+    log("Test finished")
+    sys.exit(0)
+
+# =======================
+# CS2 handler
+# =======================
+@app.route("/", methods=["POST"])
+def cs2_event():
+    global last_health, bomb_active, current_state
+
     data = request.json
-    if not data: return "OK"
+    if not data:
+        return "OK"
 
-    rnd = data.get("round", {})
+    round_data = data.get("round", {})
+    player = data.get("player", {})
+    state = player.get("state", {})
 
-    if rnd.get("bomb") == "planted" and not bomb_active:
-        bomb_active = True
-        bomb_start = time.time()
-        threading.Thread(target=bomb_sequence, daemon=True).start()
+    # ---- Bomb mode ----
+    if MODE == "bomb":
+        bomb_state = round_data.get("bomb")
 
-    if rnd.get("bomb") == "exploded":
-        bomb_active = False
-        bomb_exploded()
+        if bomb_state == "planted" and not bomb_active:
+            bomb_active = True
+            threading.Thread(
+                target=bomb_sequence,
+                daemon=True
+            ).start()
 
-    if rnd.get("bomb") == "defused":
-        bomb_active = False
-        bomb_defused()
+        if bomb_active and round_data.get("phase") == "over":
+            bomb_active = False
 
-    if rnd.get("phase") == "over":
-        bomb_active = False
-        reset_black()
-        log("GAME", "Round ended")
+            if bomb_state == "exploded":
+                log("Bomb exploded")
+                android(255, 120, 0)
+            else:
+                log("Bomb defused")
+                solid(120, 120, 120)
+
+    # ---- Player status ----
+    elif MODE == "player_status":
+        flashed = state.get("flashed", 0)
+        health = state.get("health", last_health)
+
+        if flashed > 0:
+            if current_state != "flash":
+                log("Player flashed")
+                current_state = "flash"
+                solid(190, 190, 190, 0)
+            return "OK"
+
+        if current_state == "flash" and flashed == 0:
+            solid(0, 0, 0, 20)
+            current_state = "idle"
+
+        if health < last_health:
+            log("Player damaged")
+            solid(255, 0, 0, 0)
+            time.sleep(0.15)
+            solid(0, 0, 0, 15)
+
+        last_health = health
+
+    # ---- Player health ----
+    elif MODE == "player_health":
+        health = state.get("health", 0)
+        health_bar(health)
+
+    # ---- Round end ----
+    if round_data.get("phase") == "over":
+        log("Round ended")
+        off()
 
     return "OK"
 
-# ===================== TEST =====================
-def test_mode():
-    log("TEST", "Running test mode")
-    for c in ["green","yellow","red"]:
-        effect("fade", COLORS[c], SPEED[c])
-        time.sleep(10)
-    effect("android", COLORS["orange"], 180)
-    time.sleep(5)
-    solid(COLORS["gray"])
-    time.sleep(3)
-    reset_black()
+# =======================
+# Start
+# =======================
+if __name__ == "__main__":
+    log("CS2 → WLED controller started")
+    log(f"Active mode: {MODE}")
+    log(f"WLED IP: {WLED_IP}")
 
-# ===================== MAIN =====================
-if __name__ == '__main__':
-    log("INFO", f"WLED IP: {WLED_IP}")
-    detect_effects()
-    reset_black()
+    if TEST_MODE:
+        run_test()
 
-    if '--test' in sys.argv:
-        test_mode()
-        sys.exit(0)
-
-    log("INFO", "Waiting for CS2...")
-    app.run(host='0.0.0.0', port=CS2_PORT)
+    app.run(host="0.0.0.0", port=3000, debug=False)
