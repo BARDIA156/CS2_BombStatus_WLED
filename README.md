@@ -83,7 +83,8 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - flask
 - requests
 
-[Youtube Video Test](google.com)
+[Video Test](video.mp3)
+
 
 
 
