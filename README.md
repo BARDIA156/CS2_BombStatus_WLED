@@ -1,7 +1,7 @@
 # CS2 WLED Sync                             [برای زبان پارسی روی من کلیک کن](README-Persian.md)
 Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade effects**.
 > [!IMPORTANT]
-> This project is open source but not free for commercial use.
+> This project is open source but **not free for commercial use**. Commercial usage requires explicit permission from the author.
 
 ## ✨ Features
 - Real WLED Fade (no simulation)
@@ -90,6 +90,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
