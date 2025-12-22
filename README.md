@@ -10,10 +10,11 @@ Sync your WLED RGB LEDs with Counter-Strike 2 bomb timer using **real WLED Fade 
 - Bomb exploded → Colortwinkles Effect
 - Bomb defused → Solid gray
 - Round end → Solid black
+- Player Health → Health Bar Simulation
+- Player Status → Smoke (NEW) , Flashband and Damage Simulation
 - Test mode (no CS2 needed)
 - configurable via config.json
 - EXE build support
-- 3 Options : Player Health with real Bar Simulation , Player Status with Flashbang Simulation and Damage , Bomb Status with Better Explotion Effect.
 
   [![Watch the video](https://img.youtube.com/vi/uXQSdV3tm0Q/maxresdefault.jpg)](https://youtu.be/uXQSdV3tm0Q)
 
@@ -90,6 +91,7 @@ Give the rule a name (e.g., "WLED_CS2") and click Finish.
 - CS2
 - flask
 - requests
+
 
 
 
