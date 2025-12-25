@@ -13,12 +13,12 @@
 #
 #  © 2025 Bardia Dehbozorgi. All rights reserved.
 # ============================================================
-
 import customtkinter as ctk
-import json
 import subprocess
+import json
 import os
 import sys
+import shutil
 
 # ======================
 # App setup
@@ -35,144 +35,187 @@ app.title("CS2 WLED GUI")
 app.resizable(True, True)
 
 # ======================
-# Paths (EXE safe)
+# Paths (FIXED)
 # ======================
-if getattr(sys, "frozen", False):
-    BASE_DIR = sys._MEIPASS
-    EXEC_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    EXEC_DIR = BASE_DIR
+BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) \
+    else os.path.dirname(os.path.abspath(__file__))
 
-CONFIG_FILE = os.path.join(EXEC_DIR, "config.json")
-CS2_FILE = os.path.join(EXEC_DIR, "cs2_wled.py")
-ICON_FILE = os.path.join(EXEC_DIR, "icon.ico")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+EXE_FILE = os.path.join(BASE_DIR, "cs2_wled.exe")
+PY_FILE = os.path.join(BASE_DIR, "cs2_wled.py")
+ICON_FILE = os.path.join(BASE_DIR, "icon.ico")
 
 if os.path.exists(ICON_FILE):
     app.iconbitmap(ICON_FILE)
 
 # ======================
-# Globals
+# Config
 # ======================
-running = False
-cs2_process = None
-ip_entry = None
+DEFAULT_CONFIG = {
+    "wled_ip": "",
+    "bomb_status": 1,
+    "player_status": 0,
+    "player_health": 0
+}
 
-# ======================
-# Load config
-# ======================
-def load_config():
+def ensure_config():
     if not os.path.exists(CONFIG_FILE):
-        return {
-            "wled_ip": "192.168.1.100",
-            "bomb_status": 1,
-            "player_status": 0,
-            "player_health": 0
-        }
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(DEFAULT_CONFIG, f, indent=2)
+
+def load_config():
+    ensure_config()
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 config = load_config()
 
 # ======================
-# Save config
+# Python finder
 # ======================
-def save_config():
-    if ip_entry is None:
-        return
-
-    mode = selected_mode.get()
-
-    data = {
-        "wled_ip": ip_entry.get().strip(),
-        "bomb_status": 1 if mode == "bomb" else 0,
-        "player_status": 1 if mode == "player" else 0,
-        "player_health": 1 if mode == "health" else 0
-    }
-
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-    log("Config saved")
+def find_python():
+    for cmd in ("python", "python3"):
+        if shutil.which(cmd):
+            return cmd
+    return None
 
 # ======================
-# Logger
+# Logger (CLEAN)
 # ======================
 def log(text):
     log_box.configure(state="normal")
-    log_box.insert("end", text + "\n")
+    log_box.insert("end", f"{text}\n")
     log_box.see("end")
     log_box.configure(state="disabled")
 
 # ======================
-# Status label
+# Runtime state
 # ======================
+running = False
+process = None
+
 def update_status():
-    if running:
-        status_label.configure(text="App is Running", text_color="#00ff88")
-    else:
-        status_label.configure(text="App is Stopped", text_color="#ff4444")
+    status_label.configure(
+        text="Running" if running else "Stopped",
+        text_color="#00ff88" if running else "#ff4444"
+    )
+
+def update_mode_buttons():
+    state = "disabled" if running else "normal"
+    for btn in mode_buttons.values():
+        btn.configure(state=state)
 
 # ======================
-# Start / Stop
+# Save config (SAFE)
 # ======================
-def toggle_app():
-    global running, cs2_process
+def save_config():
+    data = {
+        "wled_ip": ip_entry.get().strip(),
+        "bomb_status": 1 if selected_mode.get() == "bomb" else 0,
+        "player_status": 1 if selected_mode.get() == "player" else 0,
+        "player_health": 1 if selected_mode.get() == "health" else 0
+    }
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+# ======================
+# Start / Stop (FIXED)
+# ======================
+def start_app(test=False):
+    global process, running
+
+    if running:
+        return
+
     save_config()
 
-    if not running:
-        try:
-            cs2_process = subprocess.Popen(
-                [sys.executable, CS2_FILE],
-                cwd=EXEC_DIR,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            running = True
-            toggle_btn.configure(text="Stop")
-            log("CS2 WLED started")
-        except Exception as e:
-            log(f"Start failed: {e}")
+    if os.path.exists(EXE_FILE):
+        cmd = [EXE_FILE]
+    elif os.path.exists(PY_FILE):
+        python = find_python()
+        if not python:
+            log("Python not found")
+            return
+        cmd = [python, PY_FILE]
     else:
-        if cs2_process:
-            cs2_process.terminate()
-            cs2_process = None
+        log("cs2_wled not found")
+        return
 
-        running = False
-        toggle_btn.configure(text="Start")
-        log("CS2 WLED stopped")
+    if test:
+        cmd.append("--test")
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            cwd=BASE_DIR,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        )
+        running = not test
+        log("Test mode started" if test else "CS2 WLED started")
+    except:
+        log("Failed to start")
+        return
 
     update_status()
+    update_mode_buttons()
+    toggle_btn.configure(text="Stop")
 
-# ======================
-# Test WLED
-# ======================
+def stop_app():
+    global running, process
+
+    if process:
+        try:
+            process.terminate()
+        except:
+            pass
+
+    process = None
+    running = False
+
+    log("Stopped")
+    update_status()
+    update_mode_buttons()
+    toggle_btn.configure(text="Start")
+
+def toggle_app():
+    if running:
+        stop_app()
+    else:
+        start_app()
+
 def test_wled():
-    save_config()
-    try:
-        subprocess.Popen(
-            [sys.executable, CS2_FILE, "--test"],
-            cwd=EXEC_DIR,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        log("Test mode started")
-    except Exception as e:
-        log(f"Test failed: {e}")
+    start_app(test=True)
 
 # ======================
-# Mode selection
+# Process monitor (CRITICAL FIX)
+# ======================
+def monitor_process():
+    global running, process
+
+    if process and process.poll() is not None:
+        process = None
+        running = False
+        update_status()
+        update_mode_buttons()
+        toggle_btn.configure(text="Start")
+
+    app.after(500, monitor_process)
+
+# ======================
+# Mode
 # ======================
 selected_mode = ctk.StringVar()
 
-if config.get("bomb_status") == 1:
+if config.get("bomb_status"):
     selected_mode.set("bomb")
-elif config.get("player_status") == 1:
+elif config.get("player_status"):
     selected_mode.set("player")
 else:
     selected_mode.set("health")
 
 def select_mode(mode):
+    if running:
+        return
     selected_mode.set(mode)
     for m, btn in mode_buttons.items():
         btn.configure(fg_color="#7b3fe4" if m == mode else "#2b2b2b")
@@ -183,24 +226,19 @@ def select_mode(mode):
 # ======================
 main = ctk.CTkFrame(app, corner_radius=20)
 main.pack(expand=True, fill="both", padx=15, pady=15)
-
 main.grid_columnconfigure(0, weight=3)
 main.grid_columnconfigure(1, weight=2)
 
-# ======================
 # LEFT
-# ======================
 left = ctk.CTkFrame(main, corner_radius=18)
 left.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
 
-ctk.CTkLabel(
-    left, text="MODE SELECT",
-    font=ctk.CTkFont(size=22, weight="bold")
-).pack(pady=(20, 10))
+ctk.CTkLabel(left, text="MODE SELECT",
+             font=ctk.CTkFont(size=22, weight="bold")).pack(pady=20)
 
 mode_buttons = {}
 
-def create_mode(text, mode):
+def add_mode(text, mode):
     btn = ctk.CTkButton(
         left, text=text,
         width=220, height=85,
@@ -212,21 +250,15 @@ def create_mode(text, mode):
     btn.pack(pady=12)
     mode_buttons[mode] = btn
 
-create_mode("Bomb Status", "bomb")
-create_mode("Player Status", "player")
-create_mode("Player Health", "health")
+add_mode("Bomb Status", "bomb")
+add_mode("Player Status", "player")
+add_mode("Player Health", "health")
 
-select_mode(selected_mode.get())
-
-# ======================
 # RIGHT
-# ======================
 right = ctk.CTkFrame(main, corner_radius=18)
 right.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
 
-status_label = ctk.CTkLabel(
-    right, font=ctk.CTkFont(size=18, weight="bold")
-)
+status_label = ctk.CTkLabel(right, font=ctk.CTkFont(size=18, weight="bold"))
 status_label.pack(pady=(15, 5))
 update_status()
 
@@ -252,7 +284,7 @@ ctk.CTkButton(
 ctk.CTkLabel(right, text="WLED IP").pack(anchor="w", padx=30)
 
 ip_entry = ctk.CTkEntry(right, width=235, height=32, corner_radius=10)
-ip_entry.insert(0, config.get("wled_ip", "192.168.1.100"))
+ip_entry.insert(0, config.get("wled_ip", ""))
 ip_entry.pack(pady=(5, 10))
 
 log_box = ctk.CTkTextbox(right, height=140, corner_radius=12)
@@ -260,4 +292,6 @@ log_box.pack(fill="x", padx=20, pady=10)
 log_box.configure(state="disabled")
 
 log("GUI ready")
+
+monitor_process()
 app.mainloop()
