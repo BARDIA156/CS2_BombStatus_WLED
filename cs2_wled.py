@@ -37,22 +37,22 @@ CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 try:
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         config = json.load(f)
-except:
+except Exception:
     print("[ERROR] Cannot load config.json")
     sys.exit(1)
 
-WLED_IP = config.get("wled_ip")
+WLED_IP = config.get("wled_ip", "")
 
 ENABLE_BOMB   = int(config.get("bomb_status", 0))
 ENABLE_PLAYER = int(config.get("player_status", 0))
 ENABLE_HEALTH = int(config.get("player_health", 0))
 
 # =======================
-# Validate mode (ONLY ONE)
+# Validate mode
 # =======================
 modes = [ENABLE_BOMB, ENABLE_PLAYER, ENABLE_HEALTH]
 if modes.count(1) != 1:
-    print("[ERROR] Exactly ONE mode must be enabled in config.json")
+    print("[ERROR] Exactly ONE mode must be enabled")
     sys.exit(1)
 
 if ENABLE_BOMB:
@@ -66,14 +66,17 @@ else:
 # Flask
 # =======================
 app = Flask(__name__)
-def log(msg): print(f"[STATUS] {msg}")
+
+def log(msg):
+    print(f"[STATUS] {msg}")
 
 # =======================
-# State
+# Runtime state
 # =======================
 last_health = 100
 bomb_active = False
 current_state = "idle"
+lock = threading.Lock()
 
 # =======================
 # WLED helpers
@@ -83,12 +86,12 @@ def send_wled(data):
         requests.post(
             f"http://{WLED_IP}/json/state",
             json=data,
-            timeout=0.3
+            timeout=0.25
         )
     except:
         pass
 
-def solid(r, g, b, transition=7):
+def solid(r, g, b, transition=5):
     send_wled({
         "on": True,
         "transition": transition,
@@ -126,26 +129,34 @@ def android(r, g, b):
 def off():
     send_wled({
         "on": False,
-        "transition": 15
+        "transition": 8
     })
 
+def reset_state():
+    global bomb_active, current_state
+    with lock:
+        bomb_active = False
+        current_state = "idle"
+    off()
+
 # =======================
-# Bomb sequence
+# Bomb sequence (safe)
 # =======================
 def bomb_sequence():
     global bomb_active
-    log("Bomb planted")
 
-    fade(0, 255, 0, 80)
-    time.sleep(10)
-    if not bomb_active: return
+    stages = [
+        ((0, 255, 0), 80, 10),
+        ((255, 180, 0), 165, 10),
+        ((255, 0, 0), 255, 20),
+    ]
 
-    fade(255, 180, 0, 165)
-    time.sleep(10)
-    if not bomb_active: return
-
-    fade(255, 0, 0, 255)
-    time.sleep(20)
+    for color, speed, delay in stages:
+        with lock:
+            if not bomb_active:
+                return
+        fade(*color, speed)
+        time.sleep(delay)
 
 # =======================
 # Health bar
@@ -155,9 +166,7 @@ def health_bar(health):
         off()
         return
 
-    leds = int((health / 100) * TOTAL_LEDS)
-    leds = max(1, leds)
-
+    leds = max(1, int((health / 100) * TOTAL_LEDS))
     color = [0, 255, 0] if health > 20 else [255, 0, 0]
 
     send_wled({
@@ -175,42 +184,29 @@ def health_bar(health):
 # Test mode
 # =======================
 def test_mode():
-    log("=== TEST MODE STARTED ===")
-
     if MODE == "bomb":
-        log("Testing Bomb")
         solid(255, 0, 0, 0)
         time.sleep(1)
         off()
 
     elif MODE == "player_status":
-        log("Testing Player Status")
-
-        log("Flash test")
         solid(200, 200, 200, 0)
-        time.sleep(0.8)
+        time.sleep(0.6)
         off()
-        time.sleep(0.4)
 
-        log("Smoke test")
         fade(150, 150, 150, 120)
-        time.sleep(2.5)
+        time.sleep(2)
         off()
-        time.sleep(0.4)
 
-        log("Damage test")
         solid(255, 0, 0, 0)
         time.sleep(0.3)
         off()
 
     elif MODE == "player_health":
-        log("Testing Player Health")
         for hp in [100, 75, 50, 25, 10]:
             health_bar(hp)
-            time.sleep(0.6)
+            time.sleep(0.5)
         off()
-
-    log("=== TEST MODE FINISHED ===")
 
 # =======================
 # CS2 handler
@@ -221,6 +217,7 @@ def cs2_event():
 
     data = request.json
     if not data:
+        reset_state()
         return "OK"
 
     round_data = data.get("round", {})
@@ -228,48 +225,48 @@ def cs2_event():
     state = player.get("state", {})
     previously = data.get("previously", {})
 
-    # -------- Bomb mode --------
+    # ---- Round / Match end ----
+    if round_data.get("phase") == "over":
+        reset_state()
+        return "OK"
+
+    # ---- Bomb mode ----
     if MODE == "bomb":
         bomb_state = round_data.get("bomb")
 
         if bomb_state == "planted" and not bomb_active:
             bomb_active = True
-            threading.Thread(target=bomb_sequence, daemon=True).start()
+            threading.Thread(
+                target=bomb_sequence, daemon=True
+            ).start()
 
-        if bomb_active and round_data.get("phase") == "over":
+        if bomb_active and bomb_state is None:
             bomb_active = False
+            prev = previously.get("round", {}).get("bomb")
 
-            prev_bomb = previously.get("round", {}).get("bomb")
-            if prev_bomb == "planted":
-                log("Bomb exploded")
+            if prev == "planted":
                 android(255, 120, 0)
             else:
-                log("Bomb defused")
                 solid(120, 120, 120)
 
-    # -------- Player status --------
+    # ---- Player status ----
     elif MODE == "player_status":
         flashed = state.get("flashed", 0)
         smoked = state.get("smoked", 0)
         health = state.get("health", last_health)
 
-        # Smoke
         if smoked > 0:
             if current_state != "smoke":
-                log("Player in smoke")
                 current_state = "smoke"
                 fade(150, 150, 150, 120)
             return "OK"
 
         if current_state == "smoke" and smoked == 0:
-            log("Player left smoke")
             off()
             current_state = "idle"
 
-        # Flash
         if flashed > 0:
             if current_state != "flash":
-                log("Player flashed")
                 current_state = "flash"
                 solid(190, 190, 190, 0)
             return "OK"
@@ -278,24 +275,19 @@ def cs2_event():
             off()
             current_state = "idle"
 
-        # Damage
         if health < last_health:
-            log("Player damaged")
             solid(255, 0, 0, 0)
-            time.sleep(0.15)
+            time.sleep(0.12)
             off()
 
         last_health = health
 
-    # -------- Health mode --------
+    # ---- Health mode ----
     elif MODE == "player_health":
         health = state.get("health", last_health)
         if health != last_health:
             health_bar(health)
         last_health = health
-
-    if round_data.get("phase") == "over":
-        off()
 
     return "OK"
 
@@ -304,8 +296,6 @@ def cs2_event():
 # =======================
 if __name__ == "__main__":
     log("CS2 WLED Controller Started")
-    log(f"Mode: {MODE}")
-    log(f"WLED IP: {WLED_IP}")
 
     if TEST_MODE:
         test_mode()
